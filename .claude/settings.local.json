@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install)",
+      "Bash(sudo apt:*)",
+      "Bash(sudo apt install:*)",
+      "Bash(npm run build:*)",
+      "Bash(npm install:*)",
+      "Bash(grep:*)",
+      "Bash(ls:*)",
+      "Bash(mv:*)",
+      "Bash(rm:*)",
+      "Bash(node:*)",
+      "Bash(npm start)",
+      "Bash(./node_modules/.bin/electron:*)",
+      "Bash(timeout 30s npm start)"
+    ],
+    "deny": [],
+    "ask": [],
+    "defaultMode": "acceptEdits"
+  }
+}
