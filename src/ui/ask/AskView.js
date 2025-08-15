@@ -1,6 +1,9 @@
 import { html, css, LitElement } from '../../ui/assets/lit-core-2.7.4.min.js';
 import { parser, parser_write, parser_end, default_renderer } from '../../ui/assets/smd.js';
 
+// Voice text processor for advanced formatting
+import { voiceTextProcessor } from './voiceTextProcessor.js';
+
 export class AskView extends LitElement {
     static properties = {
         currentResponse: { type: String },
@@ -1261,9 +1264,10 @@ export class AskView extends LitElement {
             console.log('AskView: IPC 이벤트 리스너 등록 완료');
         }
 
-        // Initialize microphone when component is ready
+        // Initialize microphone and voice text processor when component is ready
         setTimeout(() => {
             this.initializeMicrophone();
+            this.initializeVoiceTextProcessor();
         }, 100);
 
         // Add message listener for action buttons
@@ -2098,6 +2102,15 @@ export class AskView extends LitElement {
     }
 
     /**
+     * Initialize voice text processor
+     */
+    async initializeVoiceTextProcessor() {
+        // The voice text processor is now imported as an ES module
+        console.log('🎤 Voice text processor ready');
+        return true;
+    }
+
+    /**
      * Initialize microphone for Deepgram STT
      */
     async initializeMicrophone() {
@@ -2193,9 +2206,29 @@ export class AskView extends LitElement {
                     console.log('🎤 [Ask Window] Input element found:', !!input);
                     
                     if (input) {
-                        console.log('🎤 [Ask Window] Setting input value to:', actualData.text);
-                        // Always update the input with the latest text (live or final)
-                        input.value = actualData.text;
+                        // Process text through voice text processor for advanced formatting
+                        let processedText = actualData.text;
+                        if (actualData.text && voiceTextProcessor) {
+                            try {
+                                // Use the voice text processor to format the text
+                                processedText = voiceTextProcessor.processText(
+                                    actualData.text, 
+                                    actualData.isPartial || !actualData.isFinal
+                                );
+                                console.log('🎤 [Ask Window] Text processed:', {
+                                    original: actualData.text.substring(0, 30) + '...',
+                                    processed: processedText.substring(0, 30) + '...',
+                                    isPartial: actualData.isPartial || !actualData.isFinal
+                                });
+                            } catch (error) {
+                                console.error('🎤 [Ask Window] Error processing text:', error);
+                                processedText = actualData.text; // Fallback to original text
+                            }
+                        }
+                        
+                        console.log('🎤 [Ask Window] Setting input value to:', processedText);
+                        // Always update the input with the latest processed text (live or final)
+                        input.value = processedText;
                         input.focus();
                         console.log('🎤 [Ask Window] Input value after setting:', input.value);
                         
