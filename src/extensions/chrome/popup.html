@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Brdy Orbit Automation</title>
+    <style>
+        body {
+            width: 320px;
+            min-height: 200px;
+            margin: 0;
+            padding: 16px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-size: 14px;
+            line-height: 1.4;
+            background: #ffffff;
+        }
+
+        .header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .logo {
+            width: 24px;
+            height: 24px;
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            border-radius: 6px;
+            margin-right: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 12px;
+        }
+
+        .title {
+            font-weight: 600;
+            color: #111827;
+        }
+
+        .status {
+            padding: 8px 12px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            font-size: 13px;
+        }
+
+        .status.connected {
+            background: #dcfce7;
+            color: #166534;
+            border: 1px solid #bbf7d0;
+        }
+
+        .status.disconnected {
+            background: #fef2f2;
+            color: #dc2626;
+            border: 1px solid #fecaca;
+        }
+
+        .page-info {
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 16px;
+        }
+
+        .page-info h3 {
+            margin: 0 0 8px 0;
+            font-size: 13px;
+            font-weight: 600;
+            color: #374151;
+        }
+
+        .page-info p {
+            margin: 0;
+            color: #6b7280;
+            font-size: 12px;
+        }
+
+        .capabilities {
+            margin-top: 8px;
+        }
+
+        .capability-tag {
+            display: inline-block;
+            background: #dbeafe;
+            color: #1d4ed8;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 11px;
+            margin-right: 4px;
+            margin-bottom: 4px;
+        }
+
+        .actions {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .btn {
+            padding: 8px 12px;
+            border: none;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+            text-decoration: none;
+        }
+
+        .btn-primary {
+            background: #3b82f6;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #2563eb;
+        }
+
+        .btn-secondary {
+            background: #f3f4f6;
+            color: #374151;
+            border: 1px solid #d1d5db;
+        }
+
+        .btn-secondary:hover {
+            background: #e5e7eb;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .footer {
+            margin-top: 16px;
+            padding-top: 12px;
+            border-top: 1px solid #e5e7eb;
+            text-align: center;
+        }
+
+        .footer a {
+            color: #6b7280;
+            text-decoration: none;
+            font-size: 12px;
+        }
+
+        .footer a:hover {
+            color: #3b82f6;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border: 2px solid #e5e7eb;
+            border-radius: 50%;
+            border-top-color: #3b82f6;
+            animation: spin 1s ease-in-out infinite;
+            margin-right: 6px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="logo">B</div>
+        <div class="title">Brdy Orbit</div>
+    </div>
+
+    <div id="status" class="status disconnected">
+        <span class="loading"></span>
+        Checking connection...
+    </div>
+
+    <div id="pageInfo" class="page-info" style="display: none;">
+        <h3>Current Page</h3>
+        <p id="pageTitle">-</p>
+        <p id="pageUrl">-</p>
+        <div class="capabilities" id="capabilities" style="display: none;">
+            <div style="margin-bottom: 4px; font-size: 11px; color: #6b7280;">Automation capabilities:</div>
+        </div>
+    </div>
+
+    <div class="actions">
+        <button id="analyzeBtn" class="btn btn-primary" disabled>
+            Analyze Current Page
+        </button>
+        
+        <button id="fillSheetsBtn" class="btn btn-secondary" disabled>
+            Fill Google Sheets
+        </button>
+        
+        <button id="fillFormsBtn" class="btn btn-secondary" disabled>
+            Fill Form Fields
+        </button>
+    </div>
+
+    <div class="footer">
+        <a href="#" id="settingsLink">Settings</a> •
+        <a href="#" id="helpLink">Help</a>
+    </div>
+
+    <script src="popup.js"></script>
+</body>
+</html>

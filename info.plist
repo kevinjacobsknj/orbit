@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>NSAppleEventsUsageDescription</key>
+    <string>Orbit needs to send Apple events to control other applications for computer automation tasks.</string>
+    <key>NSSystemAdministrationUsageDescription</key>
+    <string>Orbit needs administrative access to perform computer control tasks like clicking and typing.</string>
+    <key>NSAccessibilityUsageDescription</key>
+    <string>Orbit needs accessibility access to control your computer. This enables features like automated clicking, typing, and interacting with applications on your behalf.</string>
+    <key>NSScreenCaptureDescription</key>
+    <string>Orbit needs to capture your screen to analyze what's displayed and provide intelligent computer control assistance.</string>
+    <key>NSCameraUsageDescription</key>
+    <string>Orbit may need camera access for advanced AI features.</string>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>Orbit needs microphone access for voice commands and audio processing.</string>
+</dict>
+</plist>

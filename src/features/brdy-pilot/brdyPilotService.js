@@ -6,6 +6,7 @@
 const internalBridge = require('../../bridge/internalBridge');
 const { createStreamingLLM } = require('../common/ai/factory');
 const modelStateService = require('../common/services/modelStateService');
+const domInteraction = require('./domInteraction');
 
 class BrdyPilotService {
     constructor() {
@@ -20,7 +21,9 @@ class BrdyPilotService {
         try {
             const modelInfo = await modelStateService.getCurrentModelInfo('llm');
             if (!modelInfo || !modelInfo.apiKey) {
-                throw new Error('AI model or API key not configured.');
+                console.warn('[Brdy Pilot] AI model not available during initialization, will retry when needed');
+                this.aiProvider = null;
+                return;
             }
             
             this.aiProvider = createStreamingLLM(modelInfo.provider, {
@@ -33,7 +36,8 @@ class BrdyPilotService {
             });
             console.log('[Brdy Pilot] Service initialized with AI provider');
         } catch (error) {
-            console.error('[Brdy Pilot] Failed to initialize AI provider:', error);
+            console.warn('[Brdy Pilot] Failed to initialize AI provider, will work without it:', error.message);
+            this.aiProvider = null;
         }
 
         // Listen for internal bridge events
@@ -98,10 +102,16 @@ Page Structure:
 ${JSON.stringify(context.pageData, null, 2)}
 
 Identify:
-1. Application type (gmail, outlook, form_application, crm, ecommerce, etc.)
-2. Key capabilities (email_compose, form_filling, data_entry, etc.)
+1. Application type (gmail, outlook, google_sheets, form_application, crm, ecommerce, etc.)
+2. Key capabilities (email_compose, form_filling, data_entry, spreadsheet_editing, mock_data_generation, etc.)
 3. Automation opportunities
 4. Security considerations
+
+For Google Sheets specifically, look for:
+- Spreadsheet grid interface
+- Cell editing capabilities  
+- Formula bar presence
+- Data entry opportunities
 
 Respond in JSON format:
 {
@@ -112,7 +122,8 @@ Respond in JSON format:
         {
             "type": "string",
             "description": "string",
-            "elements": ["selector1", "selector2"]
+            "elements": ["selector1", "selector2"],
+            "actionType": "google_sheets_mock_data|form_fill|email_compose"
         }
     ],
     "securityLevel": "low|medium|high",
@@ -153,6 +164,9 @@ Respond in JSON format:
         if (url.includes('mail.google.com') || title.includes('gmail')) {
             appType = 'gmail';
             capabilities = ['email_compose', 'email_read', 'contact_management'];
+        } else if (url.includes('docs.google.com/spreadsheets') || url.includes('sheets.google.com')) {
+            appType = 'google_sheets';
+            capabilities = ['spreadsheet_editing', 'data_entry', 'mock_data_generation', 'cell_manipulation', 'formula_insertion'];
         } else if (url.includes('outlook.') || title.includes('outlook')) {
             appType = 'outlook';
             capabilities = ['email_compose', 'email_read', 'calendar_management'];
@@ -568,12 +582,208 @@ Provide realistic, appropriate content for this field.`
         internalBridge.emit('brdy-pilot:executeAction:result', result);
     }
 
+    /**
+     * Handle user query for Google Sheets automation
+     * This method can be called when the user asks about adding mock data to Google Sheets
+     */
+    async handleGoogleSheetsQuery(query, webContents) {
+        try {
+            console.log('[Brdy Pilot] Handling Google Sheets query:', query);
+            
+            // Parse the query to extract intent and parameters
+            const intent = this.parseGoogleSheetsIntent(query);
+            
+            if (intent.action === 'add_mock_data') {
+                console.log('[Brdy Pilot] Detected add_mock_data intent:', intent);
+                
+                if (!webContents) {
+                    return {
+                        success: false,
+                        response: "No browser window available for automation. Please make sure Google Sheets is open in your browser.",
+                        error: "No webContents provided"
+                    };
+                }
+                
+                const result = await this.handleGoogleSheetsMockData({
+                    webContents,
+                    dataType: intent.dataType || 'people',
+                    rowCount: intent.rowCount || 10,
+                    startRow: intent.startRow || 1,
+                    startCol: intent.startCol || 1
+                });
+                
+                return {
+                    success: result.success,
+                    response: result.message || (result.success ? 'Mock data added successfully!' : 'Failed to add mock data'),
+                    action: 'google_sheets_mock_data',
+                    result: result
+                };
+            }
+            
+            return {
+                success: false,
+                response: "I can help you add mock data to Google Sheets. Please make sure you have a Google Sheets document open and ask me to 'add mock data to my Google Sheet'.",
+                supportedActions: ['add_mock_data']
+            };
+            
+        } catch (error) {
+            console.error('[Brdy Pilot] Error handling Google Sheets query:', error);
+            return {
+                success: false,
+                response: `Sorry, I encountered an error while trying to add mock data: ${error.message}`,
+                error: error.message
+            };
+        }
+    }
+
+    /**
+     * Parse user intent for Google Sheets operations
+     */
+    parseGoogleSheetsIntent(query) {
+        const lowerQuery = query.toLowerCase();
+        
+        // Detect add mock data intent
+        if (lowerQuery.includes('add mock data') || 
+            lowerQuery.includes('add sample data') ||
+            lowerQuery.includes('generate data') ||
+            lowerQuery.includes('fill with data') ||
+            lowerQuery.includes('generate') && (lowerQuery.includes('rows') || lowerQuery.includes('data')) ||
+            lowerQuery.includes('fill') && (lowerQuery.includes('sheet') || lowerQuery.includes('spreadsheet')) ||
+            lowerQuery.includes('create') && lowerQuery.includes('data') ||
+            lowerQuery.includes('fill with') && (lowerQuery.includes('employee') || lowerQuery.includes('people') || lowerQuery.includes('sales') || lowerQuery.includes('financial') || lowerQuery.includes('inventory') || lowerQuery.includes('project')) ||
+            lowerQuery.includes('add sample') && (lowerQuery.includes('transactions') || lowerQuery.includes('records') || lowerQuery.includes('entries'))) {
+            
+            const intent = { action: 'add_mock_data' };
+            
+            // Extract data type
+            if (lowerQuery.includes('people') || lowerQuery.includes('employees') || lowerQuery.includes('contacts')) {
+                intent.dataType = 'people';
+            } else if (lowerQuery.includes('sales') || lowerQuery.includes('revenue')) {
+                intent.dataType = 'sales';
+            } else if (lowerQuery.includes('projects') || lowerQuery.includes('tasks')) {
+                intent.dataType = 'projects';
+            } else if (lowerQuery.includes('inventory') || lowerQuery.includes('products')) {
+                intent.dataType = 'inventory';
+            } else if (lowerQuery.includes('financial') || lowerQuery.includes('transactions')) {
+                intent.dataType = 'financial';
+            }
+            
+            // Extract row count
+            const rowMatch = lowerQuery.match(/(\d+)\s*(rows?|records?|entries?)/);
+            if (rowMatch) {
+                intent.rowCount = parseInt(rowMatch[1]);
+            }
+            
+            return intent;
+        }
+        
+        return { action: 'unknown' };
+    }
+
     async executeAction(actionData) {
-        // This will be implemented in the action layer
-        console.log('[Brdy Pilot] Execute action:', actionData);
+        const toolCall = {
+            name: 'ExecuteAction',
+            timestamp: Date.now(),
+            input: actionData
+        };
+
+        try {
+            console.log('[Brdy Pilot] Execute action:', actionData);
+            
+            // Handle different action types
+            let result;
+            switch (actionData.type) {
+                case 'google_sheets_mock_data':
+                    result = await this.handleGoogleSheetsMockData(actionData);
+                    break;
+                    
+                case 'form_fill':
+                    result = await this.handleFormFill(actionData);
+                    break;
+                    
+                case 'email_compose':
+                    result = await this.handleEmailCompose(actionData);
+                    break;
+                    
+                default:
+                    result = { success: false, error: `Unknown action type: ${actionData.type}` };
+            }
+            
+            toolCall.output = result;
+            toolCall.success = result.success;
+            this.toolCallHistory.push(toolCall);
+            
+            return result;
+            
+        } catch (error) {
+            toolCall.error = error.message;
+            toolCall.success = false;
+            this.toolCallHistory.push(toolCall);
+            
+            return {
+                success: false,
+                error: error.message
+            };
+        }
+    }
+
+    /**
+     * Handle Google Sheets mock data generation
+     */
+    async handleGoogleSheetsMockData(actionData) {
+        try {
+            const { webContents, dataType = 'people', rowCount = 10, startRow = 1, startCol = 1 } = actionData;
+            
+            if (!webContents) {
+                return { success: false, error: 'WebContents not provided' };
+            }
+            
+            console.log('[Brdy Pilot] Adding mock data to Google Sheets:', { dataType, rowCount, startRow, startCol });
+            
+            const result = await domInteraction.addMockDataToGoogleSheets(webContents, {
+                dataType,
+                rowCount,
+                startRow,
+                startCol
+            });
+            
+            return {
+                success: result.success,
+                message: result.success 
+                    ? `Successfully added ${rowCount} rows of ${dataType} data to Google Sheets`
+                    : `Failed to add mock data: ${result.error}`,
+                data: result.data,
+                detection: result.detection
+            };
+            
+        } catch (error) {
+            console.error('[Brdy Pilot] Error handling Google Sheets mock data:', error);
+            return {
+                success: false,
+                error: error.message
+            };
+        }
+    }
+
+    /**
+     * Handle form filling
+     */
+    async handleFormFill(actionData) {
+        // Placeholder for form filling functionality
         return {
-            success: true,
-            data: { message: 'Action execution placeholder' }
+            success: false,
+            error: 'Form filling not yet implemented'
+        };
+    }
+
+    /**
+     * Handle email composition
+     */
+    async handleEmailCompose(actionData) {
+        // Placeholder for email composition functionality
+        return {
+            success: false,
+            error: 'Email composition not yet implemented'
         };
     }
 

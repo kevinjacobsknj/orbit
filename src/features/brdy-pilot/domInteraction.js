@@ -6,6 +6,7 @@
 const { shell } = require('electron');
 const fs = require('fs').promises;
 const path = require('path');
+const GoogleSheetsInteraction = require('./googleSheetsInteraction');
 
 class DOMInteraction {
     constructor() {
@@ -13,6 +14,7 @@ class DOMInteraction {
         this.domObservers = new Map();
         this.automationQueue = [];
         this.isProcessing = false;
+        this.googleSheetsInteraction = new GoogleSheetsInteraction();
     }
 
     /**
@@ -26,15 +28,23 @@ class DOMInteraction {
             await webContents.executeJavaScript(script);
             
             // Set up communication channel
+            // Also inject Google Sheets automation if applicable
+            const googleSheetsScript = this.googleSheetsInteraction.getCompleteScript();
+            await webContents.executeJavaScript(googleSheetsScript);
+
             await webContents.executeJavaScript(`
                 window.brdyPilot = {
                     ready: true,
                     version: '1.0.0',
-                    options: ${JSON.stringify(options)}
+                    options: ${JSON.stringify(options)},
+                    googleSheets: window.GoogleSheetsAutomation || null
                 };
                 
                 // Notify Orbit that Brdy Pilot is ready
                 console.log('[Brdy Pilot] DOM automation script injected successfully');
+                if (window.GoogleSheetsAutomation) {
+                    console.log('[Brdy Pilot] Google Sheets automation available');
+                }
             `);
 
             this.injectedScripts.set(webContents.id, {
@@ -68,6 +78,43 @@ class DOMInteraction {
         detectApp: function() {
             const url = window.location.href.toLowerCase();
             const title = document.title.toLowerCase();
+            const bodyContent = document.body?.textContent?.toLowerCase() || '';
+            
+            // Salesforce detection
+            if (url.includes('salesforce.com') || url.includes('.lightning.force.com') || 
+                title.includes('salesforce') || bodyContent.includes('salesforce')) {
+                return {
+                    type: 'salesforce',
+                    platform: 'crm',
+                    capabilities: ['contact_management', 'lead_management', 'opportunity_management', 'form_filling'],
+                    confidence: 0.95,
+                    crm: true
+                };
+            }
+            
+            // HubSpot detection
+            if (url.includes('hubspot.com') || url.includes('.hubspot.') || 
+                title.includes('hubspot') || bodyContent.includes('hubspot')) {
+                return {
+                    type: 'hubspot',
+                    platform: 'crm',
+                    capabilities: ['contact_management', 'lead_management', 'deal_management', 'form_filling'],
+                    confidence: 0.95,
+                    crm: true
+                };
+            }
+            
+            // Generic CRM detection
+            if (bodyContent.includes('crm') || bodyContent.includes('customer relationship') ||
+                url.includes('crm') || title.includes('crm')) {
+                return {
+                    type: 'crm',
+                    platform: 'crm',
+                    capabilities: ['contact_management', 'lead_management', 'form_filling'],
+                    confidence: 0.8,
+                    crm: true
+                };
+            }
             
             // Gmail detection
             if (url.includes('mail.google.com') || title.includes('gmail')) {
@@ -90,11 +137,19 @@ class DOMInteraction {
             // Form detection
             const forms = document.querySelectorAll('form');
             if (forms.length > 0) {
+                // Check if it looks like a CRM form
+                const formText = Array.from(forms).map(form => form.textContent?.toLowerCase() || '').join(' ');
+                const isCrmForm = formText.includes('lead') || formText.includes('contact') || 
+                                 formText.includes('opportunity') || formText.includes('deal') ||
+                                 formText.includes('account') || formText.includes('customer');
+                
                 return {
-                    type: 'form_application',
+                    type: isCrmForm ? 'crm_form' : 'form_application',
+                    platform: isCrmForm ? 'crm' : 'generic',
                     capabilities: ['form_filling', 'data_entry'],
                     confidence: 0.8,
-                    forms: forms.length
+                    forms: forms.length,
+                    crm: isCrmForm
                 };
             }
             
@@ -136,16 +191,59 @@ class DOMInteraction {
         // Infer semantic meaning of form fields
         inferSemantic: function(element) {
             const combined = \`\${element.name || ''} \${element.id || ''} \${element.placeholder || ''}\`.toLowerCase();
+            const label = this.getFieldLabel(element);
+            const context = \`\${combined} \${label}\`.toLowerCase();
             
-            if (combined.includes('email') || element.type === 'email') return 'email';
-            if (combined.includes('name') || combined.includes('first') || combined.includes('last')) return 'name';
-            if (combined.includes('phone') || combined.includes('tel') || element.type === 'tel') return 'phone';
-            if (combined.includes('address') || combined.includes('street') || combined.includes('city')) return 'address';
-            if (combined.includes('company') || combined.includes('organization')) return 'company';
-            if (combined.includes('subject') || combined.includes('title')) return 'subject';
-            if (combined.includes('message') || combined.includes('comment')) return 'message';
+            // Basic contact fields
+            if (context.includes('email') || element.type === 'email') return 'email';
+            if (context.includes('name') || context.includes('first') || context.includes('last')) return 'name';
+            if (context.includes('phone') || context.includes('tel') || element.type === 'tel') return 'phone';
+            if (context.includes('address') || context.includes('street') || context.includes('city')) return 'address';
+            if (context.includes('company') || context.includes('organization')) return 'company';
+            if (context.includes('subject') || context.includes('title')) return 'subject';
+            if (context.includes('message') || context.includes('comment')) return 'message';
+            
+            // CRM-specific fields
+            if (context.includes('lead source') || context.includes('source')) return 'lead_source';
+            if (context.includes('lead status') || context.includes('status')) return 'lead_status';
+            if (context.includes('deal amount') || context.includes('amount') || context.includes('value')) return 'deal_amount';
+            if (context.includes('pipeline') || context.includes('stage')) return 'pipeline_stage';
+            if (context.includes('owner') || context.includes('assigned')) return 'account_owner';
+            if (context.includes('industry') || context.includes('sector')) return 'industry';
+            if (context.includes('size') || context.includes('employees')) return 'company_size';
+            if (context.includes('website') || context.includes('url')) return 'website';
+            if (context.includes('revenue') || context.includes('annual')) return 'annual_revenue';
+            if (context.includes('priority') || context.includes('importance')) return 'priority';
+            if (context.includes('campaign') || context.includes('utm')) return 'campaign';
+            if (context.includes('description') || context.includes('notes')) return 'description';
             
             return 'unknown';
+        },
+        
+        // Get field label text
+        getFieldLabel: function(element) {
+            // Look for associated label
+            const labelId = element.getAttribute('aria-labelledby');
+            if (labelId) {
+                const label = document.getElementById(labelId);
+                if (label) return label.textContent || '';
+            }
+            
+            // Look for label with for attribute
+            if (element.id) {
+                const label = document.querySelector(\`label[for="\${element.id}"]\`);
+                if (label) return label.textContent || '';
+            }
+            
+            // Look for parent label
+            const parentLabel = element.closest('label');
+            if (parentLabel) return parentLabel.textContent || '';
+            
+            // Look for sibling label
+            const siblingLabel = element.parentElement?.querySelector('label');
+            if (siblingLabel) return siblingLabel.textContent || '';
+            
+            return '';
         },
         
         // Generate CSS selector for element
@@ -472,6 +570,19 @@ class DOMInteraction {
             case 'scrollToElement':
                 return `window.brdyPilot.utils.scrollToElement(${JSON.stringify(data.selector)})`;
                 
+            // Google Sheets specific commands
+            case 'detectGoogleSheets':
+                return 'window.brdyPilot.googleSheets ? window.brdyPilot.googleSheets.detectGoogleSheets() : { isGoogleSheets: false, error: "Google Sheets automation not available" }';
+                
+            case 'addMockDataToGoogleSheets':
+                return `window.brdyPilot.googleSheets ? window.brdyPilot.googleSheets.addMockDataToSheet(${JSON.stringify(data.dataType || 'people')}, ${data.rowCount || 10}, ${data.startRow || 1}, ${data.startCol || 1}) : { success: false, error: "Google Sheets automation not available" }`;
+                
+            case 'insertGoogleSheetsData':
+                return `window.brdyPilot.googleSheets ? window.brdyPilot.googleSheets.insertBulkData(${JSON.stringify(data.dataMatrix)}, ${data.startRow || 1}, ${data.startCol || 1}) : { success: false, error: "Google Sheets automation not available" }`;
+                
+            case 'selectGoogleSheetsCell':
+                return `window.brdyPilot.googleSheets ? window.brdyPilot.googleSheets.findAndSelectCell(${data.row || 1}, ${data.col || 1}) : { success: false, error: "Google Sheets automation not available" }`;
+                
             default:
                 throw new Error(`Unknown command: ${command}`);
         }
@@ -549,6 +660,56 @@ class DOMInteraction {
             isProcessing: this.isProcessing,
             observers: this.domObservers.size
         };
+    }
+
+    /**
+     * Add mock data to Google Sheets (convenience method)
+     */
+    async addMockDataToGoogleSheets(webContents, options = {}) {
+        const {
+            dataType = 'people',
+            rowCount = 10,
+            startRow = 1,
+            startCol = 1
+        } = options;
+
+        try {
+            // First detect if it's Google Sheets
+            const detection = await this.executeCommand(webContents, 'detectGoogleSheets');
+            
+            if (!detection.success || !detection.result.isGoogleSheets) {
+                return {
+                    success: false,
+                    error: 'Current page is not Google Sheets',
+                    detection: detection.result
+                };
+            }
+
+            console.log('[DOMInteraction] Google Sheets detected, adding mock data...');
+
+            // Add the mock data
+            const result = await this.executeCommand(webContents, 'addMockDataToGoogleSheets', {
+                dataType,
+                rowCount,
+                startRow,
+                startCol
+            });
+
+            return {
+                success: result.success,
+                data: result.result,
+                detection: detection.result,
+                timestamp: Date.now()
+            };
+
+        } catch (error) {
+            console.error('[DOMInteraction] Error adding mock data to Google Sheets:', error);
+            return {
+                success: false,
+                error: error.message,
+                timestamp: Date.now()
+            };
+        }
     }
 
     /**

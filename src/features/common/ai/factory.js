@@ -22,6 +22,9 @@ const PROVIDERS = {
       name: 'OpenAI',
       handler: () => require("./providers/openai"),
       llmModels: [
+          { id: 'gpt-5', name: 'GPT-5' },
+          { id: 'gpt-5-mini', name: 'GPT-5 Mini' },
+          { id: 'gpt-5-nano', name: 'GPT-5 Nano' },
           { id: 'gpt-5-2025-08-07', name: 'GPT-5 (2025-08-07)' },
           { id: 'gpt-5-mini-2025-08-07', name: 'GPT-5 Mini (2025-08-07)' },
           { id: 'gpt-5-nano-2025-08-07', name: 'GPT-5 Nano (2025-08-07)' },

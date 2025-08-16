@@ -1,0 +1,57 @@
+{
+  "manifest_version": 3,
+  "name": "Brdy Orbit Automation",
+  "version": "1.0.0",
+  "description": "Smart automation for Google Sheets, CRM forms, and web applications",
+  
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "clipboardWrite",
+    "storage",
+    "tabs"
+  ],
+  
+  "host_permissions": [
+    "https://docs.google.com/*",
+    "https://sheets.google.com/*",
+    "https://*.salesforce.com/*",
+    "https://*.hubspot.com/*"
+  ],
+  
+  "background": {
+    "service_worker": "service_worker.js"
+  },
+  
+  "content_scripts": [
+    {
+      "matches": [
+        "https://docs.google.com/*",
+        "https://sheets.google.com/*",
+        "https://*.salesforce.com/*",
+        "https://*.hubspot.com/*"
+      ],
+      "js": ["content_script.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Brdy Orbit Automation"
+  },
+  
+  "web_accessible_resources": [
+    {
+      "resources": ["injected_script.js"],
+      "matches": ["<all_urls>"]
+    }
+  ],
+  
+  "externally_connectable": {
+    "matches": [
+      "http://localhost:*/*",
+      "https://localhost:*/*"
+    ]
+  }
+}

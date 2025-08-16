@@ -4,13 +4,17 @@ const { Portkey } = require('portkey-ai');
 const { Readable } = require('stream');
 const { getProviderForModel } = require('../factory.js');
 
-// Model mapping for future model names to current API model names
+// Model mapping for legacy/future model names to current API model names
 function mapModelName(model) {
     const modelMappings = {
-        'gpt-5-2025-08-07': 'gpt-4o',
-        'gpt-5-mini-2025-08-07': 'gpt-4o-mini',
-        'gpt-5-nano-2025-08-07': 'gpt-3.5-turbo',
-        'gpt-5': 'gpt-4o'
+        // Keep GPT-5 models as-is (they're now available)
+        'gpt-5': 'gpt-5',
+        'gpt-5-mini': 'gpt-5-mini', 
+        'gpt-5-nano': 'gpt-5-nano',
+        // Legacy mappings for development versions
+        'gpt-5-2025-08-07': 'gpt-5',
+        'gpt-5-mini-2025-08-07': 'gpt-5-mini',
+        'gpt-5-nano-2025-08-07': 'gpt-5-nano'
     };
     return modelMappings[model] || model;
 }
@@ -176,7 +180,7 @@ async function createSTT({ apiKey, language = 'en', callbacks = {}, usePortkey =
  * @param {string} [opts.portkeyVirtualKey] - Portkey virtual key
  * @returns {object} LLM instance
  */
-function createLLM({ apiKey, model = process.env.OPENAI_MODEL || 'gpt-5-2025-08-07', temperature = 0.7, maxTokens = 2048, usePortkey = false, portkeyVirtualKey, ...config }) {
+function createLLM({ apiKey, model = process.env.OPENAI_MODEL || 'gpt-5', temperature = 0.7, maxTokens = 2048, usePortkey = false, portkeyVirtualKey, ...config }) {
   const client = new OpenAI({ apiKey });
   const actualModel = mapModelName(model);
   
@@ -273,7 +277,7 @@ function createLLM({ apiKey, model = process.env.OPENAI_MODEL || 'gpt-5-2025-08-
  * @param {string} [opts.portkeyVirtualKey] - Portkey virtual key
  * @returns {object} Streaming LLM instance
  */
-function createStreamingLLM({ apiKey, model = process.env.OPENAI_MODEL || 'gpt-5-2025-08-07', temperature = 0.7, maxTokens = 2048, usePortkey = false, portkeyVirtualKey, ...config }) {
+function createStreamingLLM({ apiKey, model = process.env.OPENAI_MODEL || 'gpt-5', temperature = 0.7, maxTokens = 2048, usePortkey = false, portkeyVirtualKey, ...config }) {
   const actualModel = mapModelName(model);
   return {
     streamChat: async (messages) => {
@@ -298,14 +302,32 @@ function createStreamingLLM({ apiKey, model = process.env.OPENAI_MODEL || 'gpt-5
         body: JSON.stringify({
           model: actualModel,
           messages,
-          temperature,
-          max_tokens: maxTokens,
+          // GPT-5 models have different parameter requirements
+          ...(actualModel.includes('gpt-5') 
+            ? { 
+                max_completion_tokens: maxTokens,
+                // GPT-5 only supports temperature: 1
+                temperature: 1
+              }
+            : { 
+                max_tokens: maxTokens,
+                temperature: temperature
+              }
+          ),
           stream: true,
         }),
       });
 
       if (!response.ok) {
-        throw new Error(`OpenAI API error: ${response.status} ${response.statusText}`);
+        const errorText = await response.text().catch(() => 'Unknown error');
+        console.error(`[OpenAI] API Error ${response.status}:`, errorText);
+        
+        // If GPT-5 models are not available, throw a specific error
+        if (response.status === 400 && (model.includes('gpt-5') || actualModel.includes('gpt-5'))) {
+          throw new Error(`GPT-5 model "${actualModel}" not available. Please check if your OpenAI account has access to GPT-5 models, or use a different model.`);
+        }
+        
+        throw new Error(`OpenAI API error: ${response.status} ${response.statusText} - ${errorText}`);
       }
 
       return response;

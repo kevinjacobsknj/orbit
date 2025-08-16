@@ -13,10 +13,22 @@
       "Bash(node:*)",
       "Bash(npm start)",
       "Bash(./node_modules/.bin/electron:*)",
-      "Bash(timeout 30s npm start)"
+      "Bash(timeout 30s npm start)",
+      "Bash(open:*)",
+      "Bash(mkdir:*)",
+      "Bash(chmod:*)",
+      "Bash(pkill:*)",
+      "Bash(git clone:*)",
+      "Bash(osascript:*)",
+      "Bash(ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY node test-computer-control.js)",
+      "Bash(timeout 10s npm start)",
+      "Bash(npm test)"
     ],
     "deny": [],
     "ask": [],
-    "defaultMode": "acceptEdits"
+    "defaultMode": "acceptEdits",
+    "additionalDirectories": [
+      "/private/tmp"
+    ]
   }
 }
