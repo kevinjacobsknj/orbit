@@ -1,0 +1,14 @@
+# Outward Orbit - Browser Agent Dependencies
+
+# Web Framework
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+
+# Browser Automation
+playwright==1.40.0
+
+# Data Models
+pydantic==2.5.0
+
+# Utilities
+python-dotenv==1.0.0

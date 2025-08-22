@@ -1,0 +1,61 @@
+# ===================================================================
+# OUTWARD ORBIT - GITIGNORE FOR SENSITIVE DATA PROTECTION
+# ===================================================================
+
+# ======================== ENVIRONMENT & API KEYS ========================
+.env
+.env.*
+!.env.example
+!.env.template
+*.key
+*.secret
+*api_key*
+*apikey*
+credentials.json
+
+# ======================== DATABASES ========================
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+
+# ======================== PYTHON ========================
+__pycache__/
+*.py[cod]
+venv/
+.venv/
+*.egg-info/
+
+# ======================== NODE.JS ========================
+node_modules/
+npm-debug.log*
+*.log
+
+# ======================== BUILD OUTPUT ========================
+dist/
+build/
+out/
+
+# ======================== OPERATING SYSTEM ========================
+.DS_Store
+Thumbs.db
+
+# ======================== BROWSER PROFILES ========================
+chrome-profile/
+selenium-profile/
+
+# ======================== TEMPORARY FILES ========================
+*.tmp
+*.temp
+temp_screenshot_*.png
+screenshots/
+
+# ======================== CERTIFICATES ========================
+*.pem
+*.crt
+*.p12
+
+# ======================== SYSTEM FILES ========================
+nul

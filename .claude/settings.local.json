@@ -1,0 +1,42 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir:*)",
+      "Bash(npm init:*)",
+      "Bash(npm search:*)",
+      "WebFetch(domain:github.com)",
+      "Bash(pip search:*)",
+      "WebFetch(domain:pypi.org)",
+      "Bash(./venv/Scripts/activate)",
+      "Bash(pip install:*)",
+      "Bash(playwright install:*)",
+      "Bash(python:*)",
+      "Bash(npm test)",
+      "Bash(cmd //c:*)",
+      "Bash(taskkill:*)",
+      "Bash(git clone:*)",
+      "Bash(npm install)",
+      "Bash(npm run build:*)",
+      "Bash(npm install:*)",
+      "Bash(node:*)",
+      "Bash(npm start)",
+      "Bash(curl:*)",
+      "Bash(timeout 15 npm start)",
+      "Bash(dir:*)",
+      "Bash(sed:*)",
+      "Bash(copy .env .env.example)",
+      "Bash(git init:*)",
+      "Bash(git add:*)",
+      "Bash(git clean:*)",
+      "Bash(git reset:*)",
+      "Bash(git check-ignore:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)"
+    ],
+    "deny": [],
+    "ask": [],
+    "additionalDirectories": [
+      "C:\\c\\Users\\studi\\OneDrive\\Documents\\outward-orbit"
+    ]
+  }
+}
